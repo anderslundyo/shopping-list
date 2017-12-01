@@ -2,30 +2,50 @@ package org.projects.shoppinglist;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.support.design.widget.Snackbar;
+import android.support.v4.app.DialogFragment;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements MyDialogFragment.OnPositiveListener {
 
-    ArrayAdapter<String> adapter;
+    MyDialogFragment dialog;
+    ArrayAdapter<Product> adapter;
     ListView listView;
-    ArrayList<String> bag;
-
+    ArrayList<Product> bag;
     public ArrayAdapter getMyAdapter()
     {
         return adapter;
+    }
+    View parent;
+
+
+    //This method is the one we need to implement from the
+    //interface. It will be called when the user has clicked the
+    //positive button (yes button):
+    public void onPositiveClicked() {
+        //Do your update stuff here to the listview
+        //and the bag etc
+        //just to show how to get arguments from the bag.
+        Toast toast = Toast.makeText(this,
+                "Cleared shoppinglist", Toast.LENGTH_LONG);
+        toast.show();
+        clearList(); //here you can do stuff with the bag and
+        //adapter etc.
     }
 
     @Override
@@ -36,23 +56,27 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        parent = findViewById(R.id.layout_root);
+
+
         String name = MyPreferences.getName(this);
         updateUI(name);
 
         if (savedInstanceState != null)
         {
-             bag = savedInstanceState.getStringArrayList("shoppingArray");
+             bag = savedInstanceState.getParcelableArrayList("bag");
         }
         else{
             bag = new ArrayList<>();
         }
+        Spinner spinner = (Spinner) findViewById(R.id.spinner_qty);
 
         //getting our listiew - you can check the ID in the xml to see that it
         //is indeed specified as "list"
         listView = (ListView) findViewById(R.id.list);
         //here we create a new adapter linking the bag and the
         //listview
-        adapter =  new ArrayAdapter<>(this,
+        adapter =  new ArrayAdapter<Product>(this,
                 android.R.layout.simple_list_item_checked,bag );
 
         //setting the adapter on the listview
@@ -62,22 +86,31 @@ public class MainActivity extends AppCompatActivity {
         listView.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
 
 
+        ArrayAdapter<CharSequence> adapter2 = ArrayAdapter.createFromResource(
+                this, R.array.spinner_array, android.R.layout.simple_spinner_item);
+        adapter2.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter2);
+
+
+        final Spinner mySpinner=(Spinner) findViewById(R.id.spinner_qty);
 
         final EditText shoppingItem = (EditText)findViewById(R.id.shopping_input);
-        final EditText shoppingItemQty = (EditText)findViewById(R.id.shopping_input_qty);
 
 
         Button addButton = (Button) findViewById(R.id.addButton);
         addButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                String spinqty = mySpinner.getSelectedItem().toString();
                 String shoppingItemValue = shoppingItem.getText().toString();
-                String itemQty = shoppingItemQty.getText().toString();
 
-                bag.add(itemQty + " - " + shoppingItemValue);
+                int qty = Integer.parseInt(spinqty);
+
+                Product p = new Product(shoppingItemValue, qty);
+
+                bag.add(p);
 
                 shoppingItem.setText("");
-                shoppingItemQty.setText("");
                 //The next line is needed in order to say to the ListView
                 //that the data has changed - we have added stuff now!
                 getMyAdapter().notifyDataSetChanged();
@@ -93,7 +126,7 @@ public class MainActivity extends AppCompatActivity {
         //ALWAYS CALL THE SUPER METHOD - To be nice!
         super.onSaveInstanceState(outState);
 		/* Here we put code now to save the state */
-        outState.putStringArrayList("shoppingArray", bag);
+        outState.putParcelableArrayList("bag",bag);
     }
 
     @Override
@@ -102,6 +135,8 @@ public class MainActivity extends AppCompatActivity {
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
     }
+
+
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
@@ -112,8 +147,10 @@ public class MainActivity extends AppCompatActivity {
 
 
         if (id == R.id.clear_list){
-            this.clearList();
-            return true;
+            dialog = new MyDialogFragment.MyDialog();
+            //Here we show the dialog
+            //The tag "MyFragement" is not important for us.
+            dialog.show(getFragmentManager(), "MyFragment");
         }
 
         if (item.getItemId()==R.id.action_settings)
@@ -124,15 +161,63 @@ public class MainActivity extends AppCompatActivity {
             startActivityForResult(intent,1);
             //notice the 1 here - this is the code we then listen for in the
             //onActivityResult
+        }
 
+        if (id == R.id.share){
+            Intent sendIntent = new Intent();
+            sendIntent.setAction(Intent.ACTION_SEND);
+            sendIntent.putExtra(Intent.EXTRA_TEXT, convertListToString());
+            sendIntent.setType("text/plain");
+            startActivity(Intent.createChooser(sendIntent, getResources().getText(R.string.send_to)));
         }
 
         return super.onOptionsItemSelected(item);
     }
+    public String convertListToString()
+    {
+        String result = "";
+        for (int i = 0; i<adapter.getCount();i++)
+        {
+            Product p = (Product) adapter.getItem(i);
+            //TODO....add the product string to the result
+            //to add the product and insert a new line you can do something like this : result = result + "\n";
+            result = result + p.name + " - " + p.quantity + " \n";
+        }
+        return "Shopping list: \n" + result;
+    }
+
+
 
     public void deleteItem(View view){
-        int checked = listView.getCheckedItemPosition();
-        bag.remove(checked);
+
+        final Product lastDeletedProduct;
+        final int lastDeletedPosition;
+            lastDeletedPosition = listView.getCheckedItemPosition();
+            lastDeletedProduct = bag.get(lastDeletedPosition);
+
+        bag.remove(lastDeletedPosition);
+
+    Snackbar snackbar = Snackbar
+            .make(parent, "Name saved", Snackbar.LENGTH_LONG)
+            .setAction("UNDO", new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    //This code will ONLY be executed in case that
+                    //the user has hit the UNDO button
+                    bag.add(lastDeletedPosition, lastDeletedProduct);
+                    Snackbar snackbar = Snackbar.make(parent, "Old name restored!", Snackbar.LENGTH_SHORT);
+
+                    adapter.notifyDataSetChanged();
+                    //Show the user we have restored the name - but here
+                    //on this snackbar there is NO UNDO - so no SetAction method is called
+                    //if you wanted, you could include a REDO on the second action button
+                    //for instance.
+                    snackbar.show();
+                }
+            });
+
+        snackbar.show();
+
         getMyAdapter().notifyDataSetChanged();
     }
     public void clearList(){

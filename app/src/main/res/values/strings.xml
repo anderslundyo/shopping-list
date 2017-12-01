@@ -6,4 +6,23 @@
     <string name="clear_list">Clear list</string>
     <string name="delete">Delete</string>
     <string name="enterName">Name</string>
+    <string name="confirmation">Confirmation</string>
+    <string name="are_you_sure">Are you sure?</string>
+    <string name="yes">yes</string>
+    <string name="no">no</string>
+    <string name="share">Share</string>
+    <string name="send_to">Send to</string>
+
+    <string-array name="spinner_array">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+        <item>7</item>
+        <item>8</item>
+        <item>9</item>
+        <item>10</item>
+    </string-array>
 </resources>
