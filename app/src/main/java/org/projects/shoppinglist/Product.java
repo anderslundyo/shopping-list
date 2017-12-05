@@ -36,6 +36,24 @@ public class Product implements Parcelable {
         parcel.writeInt(quantity);
     }
 
+    public void setName(String name){
+        this.name = name;
+    }
+
+    public String getName(){
+        return name;
+    }
+
+    public void setQuantity(int quantity){
+        this.quantity = quantity;
+    }
+
+    public int getQuantity(){
+        return quantity;
+    }
+
+
+
     // "De-parcel object
     public Product(Parcel in) {
         name = in.readString();

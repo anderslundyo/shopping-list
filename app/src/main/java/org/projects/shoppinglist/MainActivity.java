@@ -18,20 +18,27 @@ import android.widget.ListView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
+import com.firebase.ui.database.FirebaseListAdapter;
+import com.firebase.ui.database.FirebaseListOptions;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.Query;
+
 
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity implements MyDialogFragment.OnPositiveListener {
 
     MyDialogFragment dialog;
-    ArrayAdapter<Product> adapter;
+    FirebaseListAdapter<Product> adapter;
     ListView listView;
     ArrayList<Product> bag;
-    public ArrayAdapter getMyAdapter()
+    public FirebaseListAdapter<Product> getMyAdapter()
     {
         return adapter;
     }
     View parent;
+    DatabaseReference firebase;
 
 
     //This method is the one we need to implement from the
@@ -48,6 +55,8 @@ public class MainActivity extends AppCompatActivity implements MyDialogFragment.
         //adapter etc.
     }
 
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -57,6 +66,17 @@ public class MainActivity extends AppCompatActivity implements MyDialogFragment.
         setSupportActionBar(toolbar);
 
         parent = findViewById(R.id.layout_root);
+
+        firebase = FirebaseDatabase.getInstance().getReference().child("items");
+
+        Query query = FirebaseDatabase.getInstance()
+                .getReference()
+                .child("items");
+
+        FirebaseListOptions<Product> options = new FirebaseListOptions.Builder<Product>()
+                .setQuery(query, Product.class)
+                .setLayout(android.R.layout.simple_list_item_checked)
+                .build();
 
 
         String name = MyPreferences.getName(this);
@@ -74,10 +94,18 @@ public class MainActivity extends AppCompatActivity implements MyDialogFragment.
         //getting our listiew - you can check the ID in the xml to see that it
         //is indeed specified as "list"
         listView = (ListView) findViewById(R.id.list);
-        //here we create a new adapter linking the bag and the
-        //listview
-        adapter =  new ArrayAdapter<Product>(this,
-                android.R.layout.simple_list_item_checked,bag );
+
+        //Adapters
+        adapter = new FirebaseListAdapter<Product>(options) {
+            @Override
+            protected void populateView(View v, Product product, int position) {
+                // Bind the Chat to the view
+                // ...
+                TextView textView = (TextView) v.findViewById(android.R.id.text1);
+                textView.setTextSize(24);
+                textView.setText(product.toString());
+            }
+        };
 
         //setting the adapter on the listview
         listView.setAdapter(adapter);
@@ -107,8 +135,11 @@ public class MainActivity extends AppCompatActivity implements MyDialogFragment.
                 int qty = Integer.parseInt(spinqty);
 
                 Product p = new Product(shoppingItemValue, qty);
+                Log.d("product",p.toString());
 
-                bag.add(p);
+               // bag.add(p);
+                firebase.push().setValue(p); //see later for this reference
+
 
                 shoppingItem.setText("");
                 //The next line is needed in order to say to the ListView
@@ -119,6 +150,16 @@ public class MainActivity extends AppCompatActivity implements MyDialogFragment.
 
         //add some stuff to the list so we have something
         // to show on app startup
+    }
+
+    @Override protected void onStart() {
+        super.onStart();
+        adapter.startListening();
+    }
+
+    @Override protected void onStop() {
+        super.onStop();
+        adapter.stopListening();
     }
 
     @Override
@@ -185,8 +226,6 @@ public class MainActivity extends AppCompatActivity implements MyDialogFragment.
         }
         return "Shopping list: \n" + result;
     }
-
-
 
     public void deleteItem(View view){
 
