@@ -2,6 +2,7 @@ package org.projects.shoppinglist;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.DialogFragment;
 import android.support.v7.app.AppCompatActivity;
@@ -18,14 +19,31 @@ import android.widget.ListView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.facebook.AccessToken;
+import com.facebook.CallbackManager;
+import com.facebook.FacebookCallback;
+import com.facebook.FacebookException;
+import com.facebook.FacebookSdk;
+import com.facebook.login.LoginManager;
+import com.facebook.login.LoginResult;
+import com.facebook.login.widget.LoginButton;
 import com.firebase.ui.database.FirebaseListAdapter;
 import com.firebase.ui.database.FirebaseListOptions;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.auth.AuthCredential;
+import com.google.firebase.auth.AuthResult;
+import com.google.firebase.auth.FacebookAuthProvider;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.Query;
 
 
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class MainActivity extends AppCompatActivity implements MyDialogFragment.OnPositiveListener {
 
@@ -39,6 +57,12 @@ public class MainActivity extends AppCompatActivity implements MyDialogFragment.
     }
     View parent;
     DatabaseReference firebase;
+    LoginButton loginButton;
+    CallbackManager callbackManager;
+    boolean loggedIn = AccessToken.getCurrentAccessToken() == null;
+    private FirebaseAuth mAuth;
+    FacebookSdk facebookSdk;
+    String userId;
 
 
     //This method is the one we need to implement from the
@@ -54,7 +78,35 @@ public class MainActivity extends AppCompatActivity implements MyDialogFragment.
         clearList(); //here you can do stuff with the bag and
         //adapter etc.
     }
+    String TAG = "anders";
 
+    private void handleFacebookAccessToken(AccessToken token) {
+        Log.d(TAG, "handleFacebookAccessToken:" + token);
+
+        AuthCredential credential = FacebookAuthProvider.getCredential(token.getToken());
+        mAuth.signInWithCredential(credential)
+                .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
+                    @Override
+                    public void onComplete(@NonNull Task<AuthResult> task) {
+                        if (task.isSuccessful()) {
+                            // Sign in success, update UI with the signed-in user's information
+                            Log.d(TAG, "signInWithCredential:success");
+                            FirebaseUser user = mAuth.getCurrentUser();
+                            userId = user.getUid();
+                            initFirebase(userId);
+                            Log.d(TAG, user.getDisplayName() + "quadrable yo ");
+                            //updateUI(user);
+                        } else {
+                            // If sign in fails, display a message to the user.
+                            Log.w(TAG, "signInWithCredential:failure", task.getException());
+
+                            updateUI(null);
+                        }
+
+                        // ...
+                    }
+                });
+    }
 
 
     @Override
@@ -65,47 +117,54 @@ public class MainActivity extends AppCompatActivity implements MyDialogFragment.
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        userId = "testIdWhichShouldChange";
+        initFirebase(userId);
+
+        callbackManager = CallbackManager.Factory.create();
+
+        mAuth = FirebaseAuth.getInstance();
+
+        loginButton = (LoginButton) findViewById(R.id.login_button);
+        loginButton.setReadPermissions("email", "public_profile");
+        // If using in a fragment
+        //loginButton.setFragment(this);
+
+        // Callback registration
+        loginButton.registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
+
+            @Override
+            public void onSuccess(LoginResult loginResult) {
+                handleFacebookAccessToken(loginResult.getAccessToken());
+
+            }
+            @Override
+            public void onCancel() {
+                Log.d("facebook Was cancelled", "onCancel: ");
+            }
+            @Override
+            public void onError(FacebookException exception) {
+                Log.d("facebook Some error", exception +" ");
+            }
+
+        });
+
+        //FirebaseAuth mAuth;
+        // ...
+        // Initialize Firebase Auth
+        //mAuth = FirebaseAuth.getInstance()
+
         parent = findViewById(R.id.layout_root);
 
-        firebase = FirebaseDatabase.getInstance().getReference().child("items");
-
-        Query query = FirebaseDatabase.getInstance()
-                .getReference()
-                .child("items");
-
-        FirebaseListOptions<Product> options = new FirebaseListOptions.Builder<Product>()
-                .setQuery(query, Product.class)
-                .setLayout(android.R.layout.simple_list_item_checked)
-                .build();
-
-
-        String name = MyPreferences.getName(this);
-        updateUI(name);
+//        initFirebase(userId);
 
         if (savedInstanceState != null)
         {
-             bag = savedInstanceState.getParcelableArrayList("bag");
+            bag = savedInstanceState.getParcelableArrayList("bag");
         }
         else{
             bag = new ArrayList<>();
         }
         Spinner spinner = (Spinner) findViewById(R.id.spinner_qty);
-
-        //getting our listiew - you can check the ID in the xml to see that it
-        //is indeed specified as "list"
-        listView = (ListView) findViewById(R.id.list);
-
-        //Adapters
-        adapter = new FirebaseListAdapter<Product>(options) {
-            @Override
-            protected void populateView(View v, Product product, int position) {
-                // Bind the Chat to the view
-                // ...
-                TextView textView = (TextView) v.findViewById(android.R.id.text1);
-                textView.setTextSize(24);
-                textView.setText(product.toString());
-            }
-        };
 
         //setting the adapter on the listview
         listView.setAdapter(adapter);
@@ -148,14 +207,87 @@ public class MainActivity extends AppCompatActivity implements MyDialogFragment.
             }
         });
 
+        LoginManager.getInstance().logInWithReadPermissions(this, Arrays.asList("public_profile"));
+
+
+
         //add some stuff to the list so we have something
         // to show on app startup
+    } //End of on-Create method
+
+    public void facebookLogout(View view){
+        Log.d(TAG, "tried to logout: ");
+        FirebaseAuth.getInstance().signOut();
+        LoginManager.getInstance().logOut();
     }
 
-    @Override protected void onStart() {
+    public void initFirebase(String userId){
+        Log.d("uid",userId);
+        firebase = FirebaseDatabase.getInstance().getReference().child("items").child(userId);
+
+        Query query = FirebaseDatabase.getInstance()
+                .getReference()
+                .child("items")
+                .child(userId);
+
+        FirebaseListOptions<Product> options = new FirebaseListOptions.Builder<Product>()
+                .setQuery(query, Product.class)
+                .setLayout(android.R.layout.simple_list_item_checked)
+                .build();
+
+
+        String name = MyPreferences.getName(this);
+        updateUI(name);
+
+
+
+        //getting our listiew - you can check the ID in the xml to see that it
+        //is indeed specified as "list"
+        listView = (ListView) findViewById(R.id.list);
+
+        //Adapters
+        adapter = new FirebaseListAdapter<Product>(options) {
+            @Override
+            protected void populateView(View v, Product product, int position) {
+                // Bind the Chat to the view
+                // ...
+                TextView textView = (TextView) v.findViewById(android.R.id.text1);
+                textView.setTextSize(24);
+                textView.setText(product.toString());
+            }
+        };
+        adapter.startListening();
+        listView.setAdapter(adapter);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        Log.d("anders", "onActivityResult() method called");
+
+        // Pass the activity result back to the Facebook SDK
+        callbackManager.onActivityResult(requestCode, resultCode, data);
+
+    }
+
+    @Override
+    protected void onStart() {
         super.onStart();
+        // Check if user is signed in (non-null) and update UI accordingly.
+        FirebaseUser currentUser = mAuth.getCurrentUser();
+
+        boolean loggedIn = AccessToken.getCurrentAccessToken() == null;
+        Log.d(" ", loggedIn + " anders");
+
+        if (currentUser == null){
+            Log.d("anders", "current user is null: ");
+        }
+        else{
+            Log.d("anders", currentUser +" not null :) ");
+        }
         adapter.startListening();
     }
+
 
     @Override protected void onStop() {
         super.onStop();
@@ -227,24 +359,35 @@ public class MainActivity extends AppCompatActivity implements MyDialogFragment.
         return "Shopping list: \n" + result;
     }
 
+    public Product getItem(int index)
+    {
+        return (Product) getMyAdapter().getItem(index);
+
+    }
+
+
     public void deleteItem(View view){
 
         final Product lastDeletedProduct;
         final int lastDeletedPosition;
-            lastDeletedPosition = listView.getCheckedItemPosition();
-            lastDeletedProduct = bag.get(lastDeletedPosition);
+        lastDeletedPosition = listView.getCheckedItemPosition();
+        //ArrayList<Product> oldProducts = new ArrayList<>(bag);
+        lastDeletedProduct = getMyAdapter().getItem(lastDeletedPosition);
 
-        bag.remove(lastDeletedPosition);
+        getMyAdapter().getRef(lastDeletedPosition).setValue(null);
+
+        //bag.remove(lastDeletedPosition);
 
     Snackbar snackbar = Snackbar
-            .make(parent, "Name saved", Snackbar.LENGTH_LONG)
+            .make(parent, lastDeletedProduct.name + " deleted", Snackbar.LENGTH_LONG)
             .setAction("UNDO", new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
                     //This code will ONLY be executed in case that
                     //the user has hit the UNDO button
-                    bag.add(lastDeletedPosition, lastDeletedProduct);
-                    Snackbar snackbar = Snackbar.make(parent, "Old name restored!", Snackbar.LENGTH_SHORT);
+                    firebase.push().setValue(lastDeletedProduct);
+                    //bag.add(lastDeletedPosition, lastDeletedProduct);
+                    Snackbar snackbar = Snackbar.make(parent, lastDeletedProduct.name + " restored", Snackbar.LENGTH_SHORT);
 
                     adapter.notifyDataSetChanged();
                     //Show the user we have restored the name - but here
@@ -260,7 +403,8 @@ public class MainActivity extends AppCompatActivity implements MyDialogFragment.
         getMyAdapter().notifyDataSetChanged();
     }
     public void clearList(){
-        bag.clear();
+        //bag.clear();
+        firebase.removeValue();
         getMyAdapter().notifyDataSetChanged();
     }
 

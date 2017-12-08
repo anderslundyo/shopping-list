@@ -12,6 +12,8 @@
     <string name="no">no</string>
     <string name="share">Share</string>
     <string name="send_to">Send to</string>
+    <string translatable="false" name="facebook_app_id">510140506033979</string>
+    <string name="fb_login_protocol_scheme">fb510140506033979</string>
 
     <string-array name="spinner_array">
         <item>1</item>
