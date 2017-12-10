@@ -6,10 +6,10 @@
     <string name="clear_list">Clear list</string>
     <string name="delete">Delete</string>
     <string name="enterName">Name</string>
-    <string name="confirmation">Confirmation</string>
+    <string name="confirmation">Clear shoppinglist</string>
     <string name="are_you_sure">Are you sure?</string>
     <string name="yes">yes</string>
-    <string name="no">no</string>
+    <string name="no">no, stop!</string>
     <string name="share">Share</string>
     <string name="send_to">Send to</string>
     <string translatable="false" name="facebook_app_id">510140506033979</string>

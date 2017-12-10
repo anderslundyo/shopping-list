@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
+import android.support.multidex.MultiDexApplication;
 import android.support.v4.app.DialogFragment;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -45,6 +46,7 @@ import com.google.firebase.database.Query;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+
 public class MainActivity extends AppCompatActivity implements MyDialogFragment.OnPositiveListener {
 
     MyDialogFragment dialog;
@@ -63,6 +65,9 @@ public class MainActivity extends AppCompatActivity implements MyDialogFragment.
     private FirebaseAuth mAuth;
     FacebookSdk facebookSdk;
     String userId;
+    String userName;
+
+
 
 
     //This method is the one we need to implement from the
@@ -93,6 +98,8 @@ public class MainActivity extends AppCompatActivity implements MyDialogFragment.
                             Log.d(TAG, "signInWithCredential:success");
                             FirebaseUser user = mAuth.getCurrentUser();
                             userId = user.getUid();
+                            userName = user.getDisplayName();
+                            updateDisplayName();
                             initFirebase(userId);
                             Log.d(TAG, user.getDisplayName() + "quadrable yo ");
                             //updateUI(user);
@@ -106,6 +113,10 @@ public class MainActivity extends AppCompatActivity implements MyDialogFragment.
                         // ...
                     }
                 });
+    }
+    public void updateDisplayName(){
+        TextView textview = (TextView)findViewById(R.id.displayName);
+        textview.setText(userName);
     }
 
 
@@ -215,11 +226,6 @@ public class MainActivity extends AppCompatActivity implements MyDialogFragment.
         // to show on app startup
     } //End of on-Create method
 
-    public void facebookLogout(View view){
-        Log.d(TAG, "tried to logout: ");
-        FirebaseAuth.getInstance().signOut();
-        LoginManager.getInstance().logOut();
-    }
 
     public void initFirebase(String userId){
         Log.d("uid",userId);
@@ -356,7 +362,7 @@ public class MainActivity extends AppCompatActivity implements MyDialogFragment.
             //to add the product and insert a new line you can do something like this : result = result + "\n";
             result = result + p.name + " - " + p.quantity + " \n";
         }
-        return "Shopping list: \n" + result;
+        return "Shopping list: \n" + result + "\n From " + userName;
     }
 
     public Product getItem(int index)
@@ -371,36 +377,38 @@ public class MainActivity extends AppCompatActivity implements MyDialogFragment.
         final Product lastDeletedProduct;
         final int lastDeletedPosition;
         lastDeletedPosition = listView.getCheckedItemPosition();
-        //ArrayList<Product> oldProducts = new ArrayList<>(bag);
-        lastDeletedProduct = getMyAdapter().getItem(lastDeletedPosition);
+        if (lastDeletedPosition != -1) {
+            Log.d("HEJ DU VED DET", listView.getCheckedItemPosition() + " ven opdeling " + lastDeletedPosition + "deleteItem: ");
+            //ArrayList<Product> oldProducts = new ArrayList<>(bag);
+            lastDeletedProduct = getMyAdapter().getItem(lastDeletedPosition);
 
-        getMyAdapter().getRef(lastDeletedPosition).setValue(null);
+            getMyAdapter().getRef(lastDeletedPosition).setValue(null);
 
-        //bag.remove(lastDeletedPosition);
+            //bag.remove(lastDeletedPosition);
 
-    Snackbar snackbar = Snackbar
-            .make(parent, lastDeletedProduct.name + " deleted", Snackbar.LENGTH_LONG)
-            .setAction("UNDO", new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    //This code will ONLY be executed in case that
-                    //the user has hit the UNDO button
-                    firebase.push().setValue(lastDeletedProduct);
-                    //bag.add(lastDeletedPosition, lastDeletedProduct);
-                    Snackbar snackbar = Snackbar.make(parent, lastDeletedProduct.name + " restored", Snackbar.LENGTH_SHORT);
+            Snackbar snackbar = Snackbar
+                    .make(parent, lastDeletedProduct.name + " deleted", Snackbar.LENGTH_LONG)
+                    .setAction("UNDO", new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                            //This code will ONLY be executed in case that
+                            //the user has hit the UNDO button
+                            firebase.push().setValue(lastDeletedProduct);
+                            //bag.add(lastDeletedPosition, lastDeletedProduct);
+                            Snackbar snackbar = Snackbar.make(parent, lastDeletedProduct.name + " restored", Snackbar.LENGTH_SHORT);
 
-                    adapter.notifyDataSetChanged();
-                    //Show the user we have restored the name - but here
-                    //on this snackbar there is NO UNDO - so no SetAction method is called
-                    //if you wanted, you could include a REDO on the second action button
-                    //for instance.
-                    snackbar.show();
-                }
-            });
+                            adapter.notifyDataSetChanged();
+                            //Show the user we have restored the name - but here
+                            //on this snackbar there is NO UNDO - so no SetAction method is called
+                            //if you wanted, you could include a REDO on the second action button
+                            //for instance.
+                            snackbar.show();
+                        }
+                    });
 
-        snackbar.show();
-
-        getMyAdapter().notifyDataSetChanged();
+            snackbar.show();
+            getMyAdapter().notifyDataSetChanged();
+        }
     }
     public void clearList(){
         //bag.clear();
@@ -409,7 +417,9 @@ public class MainActivity extends AppCompatActivity implements MyDialogFragment.
     }
 
     public void updateUI(String name){
-        Toast.makeText(this, "Welcome back " + name, Toast.LENGTH_SHORT).show();
+        if  (userName != null) {
+            Toast.makeText(this, "Welcome back " + userName, Toast.LENGTH_SHORT).show();
+        }
     }
 
 }

@@ -1,6 +1,8 @@
 package org.projects.shoppinglist;
 
 import android.app.Application;
+import android.content.Context;
+import android.support.multidex.MultiDex;
 import android.util.Log;
 
 import com.google.firebase.FirebaseApp;
@@ -21,5 +23,10 @@ public class MyApplication extends Application {
             Log.d("firebase", "persistance not enabled");
     }
 
+    @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(base);
+        MultiDex.install(this);
+    }
 
 }

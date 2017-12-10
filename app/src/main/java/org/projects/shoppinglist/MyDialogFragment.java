@@ -75,7 +75,7 @@ public class MyDialogFragment extends DialogFragment {
         protected void negativeClick() {
             //Here we override the method and can now do something
             Toast toast = Toast.makeText(getActivity(),
-                    "negative button clicked", Toast.LENGTH_SHORT);
+                    "Kept the list", Toast.LENGTH_SHORT);
             toast.show();
         }
     }
